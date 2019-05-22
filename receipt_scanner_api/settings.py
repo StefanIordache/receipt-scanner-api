@@ -80,8 +80,6 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'receipt_scanner',
-        'USER': 'stefan',
-        'PASSWORD': 'eec3cf',
         'HOST': 'localhost',
         'PORT': '5432'
     }
