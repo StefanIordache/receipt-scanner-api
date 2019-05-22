@@ -12,3 +12,8 @@ def scan_products(request):
 
     except:
         return Response({'has_error': 'true'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET', ])
+def api_info(request):
+    return Response({'methods': {'/scan_products': {'input': 'receipt image', 'output': 'products as JSON'}}}, status=status.HTTP_200_OK)
