@@ -19,6 +19,7 @@ from django.conf.urls import url
 from .views import *
 
 urlpatterns = [
+    url(r'', api_info, name='api_info'),
     url(r'/', api_info, name='api_info'),
     url(r'^scan_products$', scan_products, name='scan_products'),
 ]
