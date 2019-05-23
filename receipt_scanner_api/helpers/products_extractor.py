@@ -8,6 +8,8 @@ from PIL import Image
 import tempfile
 import io
 import os
+import re
+import json
 
 
 def otsu_Binarization(image):
@@ -68,20 +70,13 @@ def image_De_skewing(image):
         sizey= temp
     return cv2.bitwise_not(cv2.getRectSubPix(rotated, (sizey, sizex), center))
 
-def apply_OCR(image):
-    # print(image.shape)
-    # cv2.imshow('image',image)
-    # cv2.waitKey(0)
-    # pytesseract.pytesseract.tesseract_cmd = "C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe"
-    # config = ('-l eng --oem 1 --psm 3')
 
+def apply_OCR(image):
     pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
     tessdata_dir_config = '--tessdata-dir "C:\\Program Files (x86)\\Tesseract-OCR\\tessdata"'
     config = ('--tessdata-dir "tessdata" -l ron --oem 1 --psm 3')
     text = pytesseract.image_to_string(image, lang='ron')
     return text
-
-
 def set_image_dpi(image):
     im = Image.fromarray(image)
     length_x, width_y = im.size
@@ -90,7 +85,7 @@ def set_image_dpi(image):
     im_resized = im.resize(size, Image.ANTIALIAS)
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
     temp_filename = temp_file.name
-    print("Aici e totul: ",im_resized.size)
+    #print("Aici e totul: ",im_resized.size)
     im_resized.save(temp_filename, dpi=(400, 400))
     image = cv2.imread(temp_filename, cv2.IMREAD_GRAYSCALE)
     #image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -102,9 +97,12 @@ def parser(text):
     text=list(text)
     scoase = 0
     for i in range(len(text)):
+        if(text[i-scoase] == ','):
+            text[i-scoase] = '.'
         if(text[i-scoase] in symbols):
             text.pop(i-scoase)
             scoase = scoase + 1
+
     text = ''.join(text)
 
     word_list = text.split()
@@ -124,40 +122,86 @@ def parser(text):
             word_list.pop(i-scoase)
             scoase = scoase + 1
 
+    Lista = word_list
+    # Ordinea e: cantitate, pret unitar, nume produs, suma platita
+    Lista_produse = []
 
-    for word in word_list:
-        print(word)
-    return
+    Total = ["Total", "Tothl","Tutal","tuthl", "totl"]
+    # 0 - cantitate
+    # 1 - pret unitar
+    # 2 - pret platit
+    tip_cautat = 0
+    Total_fin = 0
+    produs = []
+    ok_gasit = False
+    ok = False
+
+    for i in range(len(Lista)):
+        if(ok_gasit == True):
+            break
+        #Verific daca e total:
+        for j in range(len(Total)):
+            if((Total[j].upper()) in (Lista[i].upper())):
+                ok = True
+        if(ok == True):#Daca am dat peste total, mai caut doar o valoare.
+            m = re.search('[0-9]+(\.[0-9][0-9])', Lista[i])
+            if (m is None):
+                m = re.search('[0-9]+(\,[0-9][0-9][0-9])', Lista[i])
+                virgula = 1
+            if (m is None):
+                continue
+            else:
+                Total_fin = float(m.group())
+                ok_gasit = True
+        if (tip_cautat == 0):  # Caut cantitate
+            m = re.search('[0-9]+(\.[0-9][0-9][0-9])', Lista[i])
+            if (m is None):
+                m = re.search('[0-9]+(\,[0-9][0-9][0-9])', Lista[i])
+                virgula = 1
+            if (m is None):
+                continue
+            else:
+                produs.append(m.group())
+                tip_cautat = 1
+        else:
+            if (tip_cautat == 1):  # Caut pret unitar
+                m = re.search('[0-9]+(\.[0-9][0-9])', Lista[i])
+                if (m is None):
+                    m = re.search('[0-9]+(\,[0-9][0-9])', Lista[i])
+                if (m is None):
+                    continue
+                else:
+                    produs.append(m.group())
+                    tip_cautat = 2
+                    produs.append("")
+            else:
+                if (tip_cautat == 2):
+                    m = re.search('[0-9]+(\.[0-9][0-9])', Lista[i])
+                    if (m is None):
+                        m = re.search('[0-9]+(\,[0-9][0-9])', Lista[i])
+                    if (m is None):
+                        produs[2] = produs[2] + " " + Lista[i]
+                    else:
+                        produs.append(m.group())
+                        Lista_produse.append(produs)
+                        produs = []
+                        tip_cautat = 0
+        if ((i == len(Lista) - 1) and produs != []):
+            Lista_produse.append(produs)
+    x_dict = {"lista" : Lista_produse, "total" : Total_fin}
+    y_json = json.dumps(x_dict)
+
+    return y_json
 
 
 #imaginea trebuie convertita la grayscale
 def scan_receipt(image):
-    
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # increase DPI of image
-    """
-    im.save("test_img.jpg"t, dpi=(300,300) )
-    image = cv2.imread("test_img.jpg", )
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    """
+
     height, width = image.shape
-    print(height, width)
 
-    # image = image_De_skewing(image)
-    # cv2.imshow('',image)
-    # cv2.waitKey()
-    """
-    cv2.imshow('',image)
-    cv2.waitKey()
-    image = otsu_Binarization(image)
-    cv2.imshow('',image)
-    cv2.waitKey()
-    """
-
-    # text = apply_OCR(image)
-    # result = parser(text)
     image = set_image_dpi(image)
-    print(image.shape)
+    #print(image.shape)
 
     if height > 1100:
         image = cv2.resize(image, None, fx=5., fy=5., interpolation=cv2.INTER_CUBIC)
@@ -172,7 +216,7 @@ def scan_receipt(image):
 
     image = otsu_Binarization(image)
     image = morphological_close(image)
-    print(len(image), len(image[0]))
+
 
     text = apply_OCR(image)
     result = parser(text)
@@ -180,13 +224,9 @@ def scan_receipt(image):
     return result, image
 
 
-#MAIN-UL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#Aici incepe partea principala din proiect
 def extract_products(image_path):
-
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    image = cv2.imread(image_path)
     imagInit = image
     result, image = scan_receipt(image)
 
     print(result)
-    cv2.imwrite("Gray_Image.jpg", image)

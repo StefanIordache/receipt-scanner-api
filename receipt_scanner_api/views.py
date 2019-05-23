@@ -8,7 +8,9 @@ def scan_products(request):
         image = request.data.get('image', None)
         print(image)
 
-        return Response({'has_error': 'false'}, status=status.HTTP_200_OK)
+        return Response({'products': {'mere': 5.63, 'lapte': 5.30}, 'total': 10.93})
+
+        # return Response({'has_error': 'false'}, status=status.HTTP_200_OK)
 
     except:
         return Response({'has_error': 'true'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
